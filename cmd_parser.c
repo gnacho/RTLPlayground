@@ -16,6 +16,7 @@
 #include "rtl837x_bandwidth.h"
 #include "dhcp.h"
 #include "syslog.h"
+#include "beacon.h"
 #include "uip/uip.h"
 #include "version.h"
 
@@ -1447,6 +1448,42 @@ void parse_syslog(void)
 	}
 }
 
+void parse_beacon(void)
+{
+	static __xdata uint8_t bcn_i;
+	static __xdata uint8_t bcn_src;
+
+	if (cmd_words_len < 2) { // no argument -> print status
+		print_string("Current beacon status: ");
+		if (beacon_state.enabled) {
+			print_string("enabled, sending to ");
+			print_ip(beacon_state.server_ip);
+			print_string(", interval 30s\n");
+		} else {
+			print_string("disabled\n");
+		}
+		return;
+	}
+
+	if (cmd_compare(1, "off")) {
+		beacon_stop();
+	} else if (cmd_words_len >= 3 && parse_ip(cmd_words_b[1]) != 0) {
+		beacon_stop();
+		bcn_i = 0;
+		bcn_src = cmd_words_b[2];
+		while (bcn_i < (BEACON_TOKEN_MAX - 1) && cmd_buffer[bcn_src + bcn_i] > ' ') {
+			beacon_state.token[bcn_i] = cmd_buffer[bcn_src + bcn_i];
+			bcn_i++;
+		}
+		beacon_state.token[bcn_i] = 0;
+		beacon_state.server_ip[0] = ip[0]; beacon_state.server_ip[1] = ip[1];
+		beacon_state.server_ip[2] = ip[2]; beacon_state.server_ip[3] = ip[3];
+		beacon_start();
+	} else {
+		print_string("Error: beacon [off|[ip-address token]]\n");
+		print_string("  beacon 192.168.1.226 mytoken sends a NetPulse beacon every 30s\n");
+	}
+}
 // Parse command into words
 // cmd_words_len contains the number of words found.
 // cmd_words_b[] contains only start of a word offset.
@@ -1589,6 +1626,8 @@ void cmd_parser(void) __banked
 			parse_mtu();
 		} else if (cmd_compare(0, "syslog")) {
 			parse_syslog();
+		} else if (cmd_compare(0, "beacon")) {
+			parse_beacon();
 		} else if (cmd_compare(0, "ip")) {
 			if (cmd_compare(1, "dhcp")) {
 				dhcp_start();
