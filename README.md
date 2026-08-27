@@ -24,6 +24,9 @@ only the following features are provided:
 - Configuration saved to flash via the web-interface
 - Firmware updates via the web
 - Installation as a firmware upgrade from the original web-interface
+- Optional [NetPulse UDP beacon](doc/beacon.md): the switch pushes port
+  status every 30 s and its L2/FDB table every 300 s to a NetPulse server,
+  turning these cheap unmanaged switches into fully monitored fleet devices
 
 <img width="1420" height="623" alt="GUI" src="doc/images/gui.png" />
 

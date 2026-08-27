@@ -214,7 +214,10 @@ static void beacon_send_fdb(void)
 	beacon_state.seq++;
 	bval = beacon_state.seq;
 	b_u32();
-	B_STR(",\"slug\":\"switch16\",\"token\":\"");
+	B_STR(",\"slug\":\"");
+	b_n = 0;
+	while (hostname[b_n] && b_n < 23) { *bptr++ = hostname[b_n]; b_n++; }
+	B_STR("\",\"token\":\"");
 	b_n = 0;
 	while (beacon_state.token[b_n]) {
 		*bptr++ = beacon_state.token[b_n];
@@ -313,7 +316,10 @@ void beacon_callback(void) __banked
 	beacon_state.seq++;
 	bval = beacon_state.seq;
 	b_u32();
-	B_STR(",\"slug\":\"switch16\",\"token\":\"");
+	B_STR(",\"slug\":\"");
+	b_n = 0;
+	while (hostname[b_n] && b_n < 23) { *bptr++ = hostname[b_n]; b_n++; }
+	B_STR("\",\"token\":\"");
 	b_n = 0;
 	while (beacon_state.token[b_n]) {
 		*bptr++ = beacon_state.token[b_n];
