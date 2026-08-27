@@ -91,6 +91,7 @@ static void b_u32(void)
 void beacon_init(void) __banked
 {
 	beacon_state.enabled = 0;
+	beacon_state.fdb_enabled = 0;
 	beacon_state.conn = 0;
 	beacon_state.pending = 0;
 	beacon_state.seconds = BEACON_INTERVAL;
@@ -148,6 +149,10 @@ void beacon_tick(void) __banked
 {
 	if (!beacon_state.enabled)
 		return;
+	if (!beacon_state.fdb_enabled) {
+		beacon_state.fdb_pending = 0;
+		beacon_state.fdb_seconds = BEACON_FDB_INTERVAL;
+	}
 	if (beacon_state.seconds == 0) {
 		beacon_state.pending = 1;
 		beacon_state.seconds = BEACON_INTERVAL;
@@ -288,10 +293,11 @@ void beacon_callback(void) __banked
 		return;
 	if (!beacon_state.enabled)
 		return;
-	if (beacon_state.fdb_pending) {
+	if (beacon_state.fdb_pending && beacon_state.fdb_enabled) {
 		beacon_send_fdb();
 		return;
 	}
+	beacon_state.fdb_pending = 0;
 	if (!beacon_state.pending)
 		return;
 	beacon_state.pending = 0;
