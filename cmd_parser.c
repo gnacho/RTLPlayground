@@ -1490,6 +1490,10 @@ void parse_beacon(void)
 		beacon_state.token[bcn_i] = 0;
 		beacon_state.server_ip[0] = ip[0]; beacon_state.server_ip[1] = ip[1];
 		beacon_state.server_ip[2] = ip[2]; beacon_state.server_ip[3] = ip[3];
+		/* FDB datagrams on by default: the walk is field-proven and the
+		 * saved config line has no way to carry extra options */
+		beacon_state.fdb_enabled = 1;
+		beacon_state.fdb_seconds = BEACON_FDB_INTERVAL;
 		beacon_start();
 	} else {
 		print_string("Error: beacon [off|[ip-address token]]\n");
