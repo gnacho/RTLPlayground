@@ -26,7 +26,9 @@
 #include "phy.h"
 #include "syslog.h"
 #include "beacon.h"
+#ifdef WITH_SNMP
 #include "snmp.h"
+#endif
 #include "httpd/page_impl.h"
 
 extern __code const struct machine machine;
@@ -81,7 +83,7 @@ void early_boot_handle_button(void);
 
 __xdata uint8_t idle_ready;
 
-__code uint8_t ownIP[] = { 192, 168, 2, 2 };
+__code uint8_t ownIP[] = { 0, 0, 0, 0 };	/* 0.0.0.0 = request an address via DHCP at boot */
 __code uint8_t gatewayIP[] = { 192, 168, 2, 22};
 __code uint8_t netmask[] = { 255, 255, 255, 0};
 
@@ -2308,7 +2310,9 @@ void main(void)
 
 	syslog_init();
 	beacon_init();
+#ifdef WITH_SNMP
 	snmp_init();
+#endif
 
 #ifdef DEBUG
 	// This register seems to work on the RTL8373 only if also the SDS
@@ -2356,6 +2360,13 @@ void main(void)
 	early_boot_handle_button();
 
 	execute_config();
+	/* No static address after the compiled defaults and the saved config:
+	   bring the interface up via DHCP instead (ownIP 0.0.0.0 build). */
+	if (! ((__xdata uint8_t *)&uip_hostaddr)[0] && ! ((__xdata uint8_t *)&uip_hostaddr)[1] &&
+	    ! ((__xdata uint8_t *)&uip_hostaddr)[2] && ! ((__xdata uint8_t *)&uip_hostaddr)[3]) {
+		print_string("No static IP: starting DHCP\n");
+		dhcp_start();
+	}
 	// After the config so the entry lands in the final management VLAN
 	port_l2_static_mgmt(uip_ethaddr.addr, management_vlan, false);
 	/* After the config: a name from it wins, otherwise derive one. */

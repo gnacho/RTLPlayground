@@ -7,7 +7,7 @@ HTML_LOCATION = 262144
 ifeq ($(origin CC),default)
 CC = sdcc
 endif
-CC_FLAGS = -mmcs51 -I. -Ihttpd -Iuip
+CC_FLAGS = --opt-code-size -mmcs51 -I. -Ihttpd -Iuip --opt-code-size
 ASM ?= sdas8051
 AFLAGS= -plosgff
 
@@ -59,7 +59,6 @@ SRCS = \
 	dhcp.c \
 	html_data.c \
 	rtlplayground.c \
-	snmp.c \
 	syslog.c \
 	beacon.c \
 	udp_apps.c
@@ -119,10 +118,16 @@ $(SUBDIRSCLEAN):
 $(BUILDDIR)/%.rel: %.c | create_build_dir html_data.h
 	$(CC) -MMD $(CC_FLAGS) -o $@ -c $<
 
-# snmp.c is oversized for the 8051's internal RAM without stack-auto;
-# see the comment at the top of snmp.c.
+# snmp.c is oversized for the 8051's internal RAM without stack-auto, and the
+# whole agent (~15K) does not fit in code flash alongside the rest for machines
+# with a single 16K bank0 + 48K bank1/bank2 layout: build with WITH_SNMP=1 on
+# machines with room for it (requires slimming something else on KP-9000 V3.1).
+ifeq ($(WITH_SNMP),1)
+SRCS += snmp.c
+CC_FLAGS += -DWITH_SNMP
 $(BUILDDIR)/snmp.rel: snmp.c | create_build_dir html_data.h
 	$(CC) -MMD $(CC_FLAGS) --stack-auto -o $@ -c $<
+endif
 
 $(BUILDDIR)/%.rel: %.asm | create_build_dir
 	${ASM} ${AFLAGS} -o $@ $<

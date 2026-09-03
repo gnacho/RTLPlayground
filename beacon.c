@@ -27,8 +27,8 @@
 #include "rtl837x_regs.h"
 #include "rtl837x_port.h"
 
-#pragma codeseg BANK2
-#pragma constseg BANK2
+#pragma codeseg BANK0
+#pragma constseg BANK0
 
 extern __code struct machine machine;
 extern __xdata uint8_t sfr_data[4];

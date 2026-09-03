@@ -4,7 +4,9 @@
 #include "dhcp.h"
 #include "syslog.h"
 #include "beacon.h"
+#ifdef WITH_SNMP
 #include "snmp.h"
+#endif
 
 void udp_callbacks(void);
 

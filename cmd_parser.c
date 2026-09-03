@@ -17,7 +17,9 @@
 #include "dhcp.h"
 #include "syslog.h"
 #include "beacon.h"
+#ifdef WITH_SNMP
 #include "snmp.h"
+#endif
 #include "uip/uip.h"
 #include "version.h"
 
@@ -562,7 +564,6 @@ void parse_isolate(void)
 	if (cmd_words_len < 3)
 		goto err;
 
-	print_string("\nISOLATE ");
 
 	if (cmd_parse_port_separator(cmd_words_b[1]) == 0)
 		goto err;
@@ -736,7 +737,6 @@ void parse_mirror(void)
 	return;
 
 err:
-	print_string("Port/command missing: mirror [status/off/<mirroring port> [port][t/r]]...\n");
 	return;
 }
 
@@ -744,10 +744,6 @@ err:
 void parse_port(void)
 {
 	if (cmd_words_len < 3) {
-		print_string("\nUsage:" \
-					 "\nport <port> [show|on|off]" \
-					 "\nport <port> [10m|100m|1g|2g5|duplex] [half|full]" \
-					 "\nport <port> name [custom port name]\n");
 		return;
 	}
 
@@ -773,7 +769,6 @@ void parse_port(void)
 			i++;
 		}
 		port_names[phy_settings.port][i] = NUL;
-		print_string("\nName set to: \"");
 		print_string_x(port_names[phy_settings.port]);
 		print_string("\"\n");
 	} else if (machine.is_sfp[phy_settings.port]) {
@@ -902,7 +897,6 @@ void parse_sfp(void)
 
 	if (cmd_words_len == 1) {
 		for (slot = 0; slot < machine.n_sfp; slot++) {
-			print_string("\nSlot "); write_char('1' + slot);
 			if (gpio_pin_test(machine.sfp_port[slot].pin_detect)) {
 				print_string(" - empty\n");
 				continue;
@@ -912,7 +906,6 @@ void parse_sfp(void)
 				continue;
 			}
 			print_string(" - Rate: "); print_byte(sfp_buf[1]);
-			print_string("  Encoding: "); print_byte(sfp_buf[0]);
 			write_char('\n');
 			if (!sfp_print_info(slot) || !sfp_print_measurements(slot))
 				print_string("I2C read failed on this slot\n");
@@ -954,7 +947,6 @@ void parse_sfp(void)
 	handle_sfp();
 	return;
 err:
-	print_string("\nUsage:\n\tsfp\n\tsfp [1|2] [1g|2g5|10g]\n");
 }
 
 
@@ -986,7 +978,6 @@ void parse_regget(void)
 	return;
 
 err:
-	print_string("usage: regget <hexvalue>\n\tlike: regget 0BB0 or regget 0c");
 	return;
 }
 
@@ -1033,7 +1024,6 @@ void parse_regset(void)
 	return;
 
 err:
-	print_string("usage: regset <hexvalue> <hexvalue>\n\tlike regset 0b abcd1234.");
 }
 
 
@@ -1076,7 +1066,6 @@ void parse_sdsget(void)
 	return;
 
 err:
-	print_string("usage: sdsget <sds-id> <hex:page> <hex:reg>\n");
 	return;
 }
 
@@ -1132,7 +1121,6 @@ void parse_sdsset(void)
 	return;
 
 err:
-	print_string("usage: sdsset <sds-id> <hex:page> <hex:reg> <hex:val>\n");
 	return;
 }
 
@@ -1181,7 +1169,6 @@ void parse_phyget(void)
 	return;
 
 err:
-	print_string("usage: phyget <phy-id> <dev-id> <hex:reg>\n");
 	return;
 }
 
@@ -1241,7 +1228,6 @@ void parse_physet(void)
 	return;
 
 err:
-	print_string("usage: physet <phy-id> <dev-id> <hex:reg> <hex:val>\n");
 	return;
 }
 
@@ -1410,7 +1396,6 @@ void parse_bw(void)
 	return;
 
 err:
-	print_string("usage: bw [in|out|status] <port> [<hexvalue>|off|drop|fc]\n");
 }
 
 void parse_syslog(void)
@@ -1476,8 +1461,6 @@ void parse_syslog(void)
 	else
 	{
 		print_string("Error: syslog [on|off|ip [ip-address]|port [number]]\n");
-		print_string("  on/off enables or disables syslog, ip sets the syslog server IP address,\n");
-		print_string("  port sets the destination UDP port (default 514)\n");
 	}
 }
 
@@ -1528,7 +1511,6 @@ void parse_beacon(void)
 		beacon_start();
 	} else {
 		print_string("Error: beacon [off|[ip-address token]]\n");
-		print_string("  beacon 192.168.1.226 mytoken sends a NetPulse beacon every 30s\n");
 	}
 }
 /* --- flashdump/setmac: factory MAC diagnostics and restore (2026-08-27) --- */
@@ -1544,7 +1526,6 @@ static __xdata uint8_t sm_blank;
 void parse_flashdump(void)
 {
 	if (cmd_words_len < 2 || atoi_hex(cmd_words_b[1]) != 3) {
-		print_string("usage: flashdump <6-hex-digit address, e.g. 1FC000>\n");
 		return;
 	}
 	flash_region.addr = ((uint32_t)hexvalue[0] << 16) |
@@ -1563,7 +1544,6 @@ void parse_flashdump(void)
 void parse_setmac(void)
 {
 	if (cmd_words_len < 2) {
-		print_string("usage: setmac <12 hex digits, ':' or '-' separators ok>\n");
 		print_string("writes the factory MAC at 0x1FC000, reboot with: reset\n");
 		return;
 	}
@@ -1633,6 +1613,7 @@ void parse_setmac(void)
 		print_byte(fd_buf[fd_i]);
 	write_char('\n');
 	print_string("reboot to apply: reset\n");
+}
 
 /* Copy a whitespace/NUL-terminated token from cmd_buffer[idx] into dst,
  * clamped to max characters. dst is always NUL-terminated on return. */
@@ -1645,6 +1626,7 @@ static void copy_token(__xdata char *dst, uint8_t idx, uint8_t max)
 	dst[n] = '\0';
 }
 
+#ifdef WITH_SNMP
 void parse_snmp(void)
 {
 	if (cmd_words_len < 2) {
@@ -1653,11 +1635,8 @@ void parse_snmp(void)
 			print_string("enabled");
 		else
 			print_string("disabled");
-		print_string("\n  community: ");
 		print_string_x(snmp_state.community);
-		print_string("\n  sysContact: ");
 		print_string_x(snmp_state.contact);
-		print_string("\n  sysLocation: ");
 		print_string_x(snmp_state.location);
 		write_char('\n');
 		return;
@@ -1691,6 +1670,7 @@ void parse_snmp(void)
 		print_string("Error: snmp [on|off|community <s>|contact <s>|location <s>]\n");
 	}
 }
+#endif /* WITH_SNMP */
 
 // Parse command into words
 // cmd_words_len contains the number of words found.
@@ -1729,7 +1709,6 @@ void cmd_tokenize(void) __banked
 			cmd_words_b[word++] = line_ptr;
 			if (word >= N_WORDS) {
 				cmd_words_len = 0;
-				print_string("\nSyntax error: too many arguments.");
 				err_status = ERR_TOO_MANY_ARGUMENTS;
 				return;
 			}
@@ -1771,8 +1750,6 @@ void print_gpio_status(void) {
 // Show software version
 void print_sw_version(void) __banked {
 	print_string("Software version: " VERSION_SW);
-	print_string("\nBuild date: " BUILD_DATE);
-	print_string("\nHardware: ");
 	print_string(machine.machine_name);
 	write_char('\n');
 }
@@ -1798,7 +1775,6 @@ void cmd_parser(void) __banked
 #endif
 	if (cmd_words_len >= 1) {
 		if (cmd_compare(0, "reset")) {
-			print_string("\nRESET\n\n");
 			reset_chip();
 		} else if (cmd_compare(0, "sfp")) {
 			parse_sfp();
@@ -1807,25 +1783,20 @@ void cmd_parser(void) __banked
 		} else if (cmd_compare(0, "flash") && cmd_words_len == 2) {
 			uint8_t c = cmd_buffer[cmd_words_b[1]];
 			if (c == 's') {
-				print_string("\nSECURITY REGISTERS\n");
 				// The following will only show something else than 0xff if it was programmed for a managed switch
 				print_string("Region 1: ");
 				flash_region.addr = 0x0001000;
 				flash_region.len = 40;
 				flash_read_security();
-				print_string("\nRegion 2: ");
 				flash_region.addr = 0x0002000;
 				flash_region.len = 40;
 				flash_read_security();
-				print_string("\nRegion 3: ");
 				flash_region.addr = 0x0003000;
 				flash_region.len = 40;
 				flash_read_security();
 			} else if (c == 'j') {
-				print_string("\nJEDEC ID\n");
 				flash_read_jedecid();
 			} else if (c == 'u') {
-				print_string("\nUNIQUE ID (note: only 4 bytes are likely correct here!)\n");
 				flash_read_uid();
 			}
 		} else if (cmd_compare(0, "port")) {
@@ -1840,8 +1811,10 @@ void cmd_parser(void) __banked
 			parse_flashdump();
 		} else if (cmd_compare(0, "setmac")) {
 			parse_setmac();
+#ifdef WITH_SNMP
 		} else if (cmd_compare(0, "snmp")) {
 			parse_snmp();
+#endif
 		} else if (cmd_compare(0, "ip")) {
 			if (cmd_compare(1, "dhcp")) {
 				dhcp_start();
@@ -1864,10 +1837,7 @@ void cmd_parser(void) __banked
 					print_string("Setting ip: ");
 					print_ip(ip); write_char('\n');
 				} else {
-					print_string("Invalid IP address\n" \
-								 "Error: ip [<ip-address>|dhcp]\n" \
-								 "  The dhcp option enables the dhcp client, calling ip without options prints the current IP\n" \
-								 "  Calling with a valid IP address will stop any ongoing dhcp client and set the IP address\n");
+					print_string("Invalid IP address\n");
 				}
 			}
 		} else if (cmd_compare(0, "gw")) {
@@ -1880,8 +1850,7 @@ void cmd_parser(void) __banked
 					print_string("Setting gw: ");
 					print_ip(ip); write_char('\n');
 				} else {
-					print_string("Invalid IP address\n" \
-								 "Error: gw <ip-address>\n");
+					print_string("Invalid IP address\n");
 				}
 			}
 		} else if (cmd_compare(0, "netmask")) {
@@ -1981,7 +1950,6 @@ void cmd_parser(void) __banked
 		} else if (cmd_compare(0, "version")) {
 			print_sw_version();
 		} else if (cmd_compare(0, "time")) {
-			print_string("  Tick counter: "); print_long(ticks); print_string("   Sec Counter: ");
 			reg_read_m(RTL837X_REG_SEC_COUNTER);
 			print_sfr_data();
 			write_char('\n');
