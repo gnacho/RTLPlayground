@@ -26,6 +26,7 @@
 #include "phy.h"
 #include "syslog.h"
 #include "beacon.h"
+#include "snmp.h"
 #include "httpd/page_impl.h"
 
 extern __code const struct machine machine;
@@ -2307,6 +2308,7 @@ void main(void)
 
 	syslog_init();
 	beacon_init();
+	snmp_init();
 
 #ifdef DEBUG
 	// This register seems to work on the RTL8373 only if also the SDS

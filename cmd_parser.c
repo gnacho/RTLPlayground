@@ -17,6 +17,7 @@
 #include "dhcp.h"
 #include "syslog.h"
 #include "beacon.h"
+#include "snmp.h"
 #include "uip/uip.h"
 #include "version.h"
 
@@ -1484,7 +1485,6 @@ void parse_beacon(void)
 {
 	static __xdata uint8_t bcn_i;
 	static __xdata uint8_t bcn_src;
-
 	if (cmd_words_len < 2) { // no argument -> print status
 		print_string("Current beacon status: ");
 		if (beacon_state.enabled) {
@@ -1496,7 +1496,6 @@ void parse_beacon(void)
 		}
 		return;
 	}
-
 	if (cmd_compare(1, "off")) {
 		beacon_stop();
 	} else if (cmd_compare(1, "fdb")) {
@@ -1541,9 +1540,7 @@ static __xdata uint8_t sm_c;
 static __xdata uint8_t sm_nib;
 static __xdata uint8_t sm_pos;
 static __xdata uint8_t sm_blank;
-
 #define FACTORY_MAC_OFFSET 0x1FC000UL
-
 void parse_flashdump(void)
 {
 	if (cmd_words_len < 2 || atoi_hex(cmd_words_b[1]) != 3) {
@@ -1563,7 +1560,6 @@ void parse_flashdump(void)
 	}
 	write_char('\n');
 }
-
 void parse_setmac(void)
 {
 	if (cmd_words_len < 2) {
@@ -1610,7 +1606,6 @@ void parse_setmac(void)
 			write_char(':');
 	}
 	write_char('\n');
-
 	flash_region.addr = FACTORY_MAC_OFFSET;
 	flash_region.len = 16;
 	flash_read_bulk(fd_buf);
@@ -1618,7 +1613,6 @@ void parse_setmac(void)
 	for (fd_i = 0; fd_i < 6; fd_i++)
 		print_byte(fd_buf[fd_i]);
 	write_char('\n');
-
 	sm_blank = 1;
 	for (fd_i = 0; fd_i < 6; fd_i++)
 		if (fd_buf[fd_i] != 0xFF)
@@ -1631,7 +1625,6 @@ void parse_setmac(void)
 	flash_region.addr = FACTORY_MAC_OFFSET;
 	flash_region.len = 6;
 	flash_write_bytes(sm_mac);
-
 	flash_region.addr = FACTORY_MAC_OFFSET;
 	flash_region.len = 6;
 	flash_read_bulk(fd_buf);
@@ -1640,6 +1633,63 @@ void parse_setmac(void)
 		print_byte(fd_buf[fd_i]);
 	write_char('\n');
 	print_string("reboot to apply: reset\n");
+
+/* Copy a whitespace/NUL-terminated token from cmd_buffer[idx] into dst,
+ * clamped to max characters. dst is always NUL-terminated on return. */
+static void copy_token(__xdata char *dst, uint8_t idx, uint8_t max)
+{
+	uint8_t n = 0;
+	while (cmd_buffer[idx] > ' ' && n < max) {
+		dst[n++] = cmd_buffer[idx++];
+	}
+	dst[n] = '\0';
+}
+
+void parse_snmp(void)
+{
+	if (cmd_words_len < 2) {
+		print_string("SNMP: ");
+		if (snmp_state.enabled)
+			print_string("enabled");
+		else
+			print_string("disabled");
+		print_string("\n  community: ");
+		print_string_x(snmp_state.community);
+		print_string("\n  sysContact: ");
+		print_string_x(snmp_state.contact);
+		print_string("\n  sysLocation: ");
+		print_string_x(snmp_state.location);
+		write_char('\n');
+		return;
+	}
+	if (cmd_compare(1, "on")) {
+		snmp_start();
+	} else if (cmd_compare(1, "off")) {
+		snmp_stop();
+	} else if (cmd_compare(1, "community")) {
+		if (cmd_words_len < 3) {
+			print_string("Error: snmp community <string>\n");
+			return;
+		}
+		copy_token(snmp_state.community, cmd_words_b[2],
+			   SNMP_COMMUNITY_MAX);
+	} else if (cmd_compare(1, "contact")) {
+		if (cmd_words_len < 3) {
+			print_string("Error: snmp contact <string>\n");
+			return;
+		}
+		copy_token(snmp_state.contact, cmd_words_b[2],
+			   sizeof(snmp_state.contact) - 1);
+	} else if (cmd_compare(1, "location")) {
+		if (cmd_words_len < 3) {
+			print_string("Error: snmp location <string>\n");
+			return;
+		}
+		copy_token(snmp_state.location, cmd_words_b[2],
+			   sizeof(snmp_state.location) - 1);
+	} else {
+		print_string("Error: snmp [on|off|community <s>|contact <s>|location <s>]\n");
+	}
 }
 
 // Parse command into words
@@ -1790,6 +1840,8 @@ void cmd_parser(void) __banked
 			parse_flashdump();
 		} else if (cmd_compare(0, "setmac")) {
 			parse_setmac();
+		} else if (cmd_compare(0, "snmp")) {
+			parse_snmp();
 		} else if (cmd_compare(0, "ip")) {
 			if (cmd_compare(1, "dhcp")) {
 				dhcp_start();
