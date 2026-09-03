@@ -60,6 +60,7 @@ SRCS = \
 	html_data.c \
 	rtlplayground.c \
 	syslog.c \
+	beacon.c \
 	udp_apps.c
 
 # RTL837x

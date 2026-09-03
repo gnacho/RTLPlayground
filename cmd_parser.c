@@ -16,6 +16,7 @@
 #include "rtl837x_bandwidth.h"
 #include "dhcp.h"
 #include "syslog.h"
+#include "beacon.h"
 #include "uip/uip.h"
 #include "version.h"
 
@@ -1479,6 +1480,168 @@ void parse_syslog(void)
 	}
 }
 
+void parse_beacon(void)
+{
+	static __xdata uint8_t bcn_i;
+	static __xdata uint8_t bcn_src;
+
+	if (cmd_words_len < 2) { // no argument -> print status
+		print_string("Current beacon status: ");
+		if (beacon_state.enabled) {
+			print_string("enabled, sending to ");
+			print_ip(beacon_state.server_ip);
+			print_string(", interval 30s\n");
+		} else {
+			print_string("disabled\n");
+		}
+		return;
+	}
+
+	if (cmd_compare(1, "off")) {
+		beacon_stop();
+	} else if (cmd_compare(1, "fdb")) {
+		if (cmd_compare(2, "on")) {
+			beacon_state.fdb_enabled = 1;
+			beacon_state.fdb_seconds = BEACON_FDB_INTERVAL;
+			print_string("FDB datagrams enabled (experimental)\n");
+		} else if (cmd_compare(2, "off")) {
+			beacon_state.fdb_enabled = 0;
+			print_string("FDB datagrams disabled\n");
+		} else {
+			print_string("FDB datagrams are ");
+			print_string(beacon_state.fdb_enabled ? "on\n" : "off\n");
+		}
+	} else if (cmd_words_len >= 3 && parse_ip(cmd_words_b[1]) != 0) {
+		beacon_stop();
+		bcn_i = 0;
+		bcn_src = cmd_words_b[2];
+		while (bcn_i < (BEACON_TOKEN_MAX - 1) && cmd_buffer[bcn_src + bcn_i] > ' ') {
+			beacon_state.token[bcn_i] = cmd_buffer[bcn_src + bcn_i];
+			bcn_i++;
+		}
+		beacon_state.token[bcn_i] = 0;
+		beacon_state.server_ip[0] = ip[0]; beacon_state.server_ip[1] = ip[1];
+		beacon_state.server_ip[2] = ip[2]; beacon_state.server_ip[3] = ip[3];
+		/* FDB datagrams on by default: the walk is field-proven and the
+		 * saved config line has no way to carry extra options */
+		beacon_state.fdb_enabled = 1;
+		beacon_state.fdb_seconds = BEACON_FDB_INTERVAL;
+		beacon_start();
+	} else {
+		print_string("Error: beacon [off|[ip-address token]]\n");
+		print_string("  beacon 192.168.1.226 mytoken sends a NetPulse beacon every 30s\n");
+	}
+}
+/* --- flashdump/setmac: factory MAC diagnostics and restore (2026-08-27) --- */
+static __xdata uint8_t fd_buf[16];
+static __xdata uint8_t fd_i;
+static __xdata uint8_t sm_mac[6];
+static __xdata uint8_t sm_i;
+static __xdata uint8_t sm_c;
+static __xdata uint8_t sm_nib;
+static __xdata uint8_t sm_pos;
+static __xdata uint8_t sm_blank;
+
+#define FACTORY_MAC_OFFSET 0x1FC000UL
+
+void parse_flashdump(void)
+{
+	if (cmd_words_len < 2 || atoi_hex(cmd_words_b[1]) != 3) {
+		print_string("usage: flashdump <6-hex-digit address, e.g. 1FC000>\n");
+		return;
+	}
+	flash_region.addr = ((uint32_t)hexvalue[0] << 16) |
+			    ((uint32_t)hexvalue[1] << 8) | hexvalue[2];
+	flash_region.len = 16;
+	flash_read_bulk(fd_buf);
+	print_string("flash @ 0x");
+	print_byte(hexvalue[0]); print_byte(hexvalue[1]); print_byte(hexvalue[2]);
+	print_string(" (16 bytes):\n");
+	for (fd_i = 0; fd_i < 16; fd_i++) {
+		print_byte(fd_buf[fd_i]);
+		write_char(' ');
+	}
+	write_char('\n');
+}
+
+void parse_setmac(void)
+{
+	if (cmd_words_len < 2) {
+		print_string("usage: setmac <12 hex digits, ':' or '-' separators ok>\n");
+		print_string("writes the factory MAC at 0x1FC000, reboot with: reset\n");
+		return;
+	}
+	sm_pos = cmd_words_b[1];
+	sm_i = 0;
+	sm_nib = 0xFF;
+	while (sm_i < 6) {
+		sm_c = cmd_buffer[sm_pos];
+		if (sm_c == NUL || sm_c == ' ' || sm_c == '\r' || sm_c == '\n')
+			break;
+		sm_pos++;
+		if (sm_c == ':' || sm_c == '-')
+			continue;
+		sm_c |= 0x20;
+		if (sm_c >= '0' && sm_c <= '9')
+			sm_c -= '0';
+		else if (sm_c >= 'a' && sm_c <= 'f')
+			sm_c -= 'a' - 10;
+		else
+			break;
+		if (sm_nib == 0xFF) {
+			sm_nib = sm_c;
+		} else {
+			sm_mac[sm_i++] = (sm_nib << 4) | sm_c;
+			sm_nib = 0xFF;
+		}
+	}
+	if (sm_i != 6) {
+		print_string("bad MAC, need 12 hex digits\n");
+		return;
+	}
+	if ((sm_mac[0] & 0x03) || ((sm_mac[0] | sm_mac[1] | sm_mac[2]) == 0)) {
+		print_string("refusing: must be unicast, globally administered\n");
+		return;
+	}
+	print_string("setting MAC ");
+	for (fd_i = 0; fd_i < 6; fd_i++) {
+		print_byte(sm_mac[fd_i]);
+		if (fd_i != 5)
+			write_char(':');
+	}
+	write_char('\n');
+
+	flash_region.addr = FACTORY_MAC_OFFSET;
+	flash_region.len = 16;
+	flash_read_bulk(fd_buf);
+	print_string("current 0x1FC000: ");
+	for (fd_i = 0; fd_i < 6; fd_i++)
+		print_byte(fd_buf[fd_i]);
+	write_char('\n');
+
+	sm_blank = 1;
+	for (fd_i = 0; fd_i < 6; fd_i++)
+		if (fd_buf[fd_i] != 0xFF)
+			sm_blank = 0;
+	if (!sm_blank) {
+		print_string("sector not blank, erasing 4K sector at 0x1FC000\n");
+		flash_region.addr = FACTORY_MAC_OFFSET;
+		flash_sector_erase();
+	}
+	flash_region.addr = FACTORY_MAC_OFFSET;
+	flash_region.len = 6;
+	flash_write_bytes(sm_mac);
+
+	flash_region.addr = FACTORY_MAC_OFFSET;
+	flash_region.len = 6;
+	flash_read_bulk(fd_buf);
+	print_string("after write:      ");
+	for (fd_i = 0; fd_i < 6; fd_i++)
+		print_byte(fd_buf[fd_i]);
+	write_char('\n');
+	print_string("reboot to apply: reset\n");
+}
+
 // Parse command into words
 // cmd_words_len contains the number of words found.
 // cmd_words_b[] contains only start of a word offset.
@@ -1621,6 +1784,12 @@ void cmd_parser(void) __banked
 			parse_mtu();
 		} else if (cmd_compare(0, "syslog")) {
 			parse_syslog();
+		} else if (cmd_compare(0, "beacon")) {
+			parse_beacon();
+		} else if (cmd_compare(0, "flashdump")) {
+			parse_flashdump();
+		} else if (cmd_compare(0, "setmac")) {
+			parse_setmac();
 		} else if (cmd_compare(0, "ip")) {
 			if (cmd_compare(1, "dhcp")) {
 				dhcp_start();

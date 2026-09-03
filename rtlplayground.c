@@ -25,6 +25,7 @@
 #include "machine.h"
 #include "phy.h"
 #include "syslog.h"
+#include "beacon.h"
 #include "httpd/page_impl.h"
 
 extern __code const struct machine machine;
@@ -1566,6 +1567,9 @@ void idle(void)
 		// Check for button presses once a second
 		handle_button();
 
+		// NetPulse beacon countdown, once a second
+		beacon_tick();
+
 #ifdef DEBUG
 		print_sfr_data();
 		write_char('\n');
@@ -2302,6 +2306,7 @@ void main(void)
 	check_and_flash_update_image();
 
 	syslog_init();
+	beacon_init();
 
 #ifdef DEBUG
 	// This register seems to work on the RTL8373 only if also the SDS
