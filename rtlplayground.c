@@ -497,44 +497,41 @@ void print_cmd_prompt(void)
 void isr_ext0(void) __interrupt(0)
 {
 	EX0 = 0;	// Disable interrupt for the moment
-	write_char('X');
 	IT0 = 1;	// Trigger on falling edge of external interrupt
 	EX0 = 1;	// Re-enable interrupt
+	/* write_char() removed (logicog/RTLPlayground #408): it spins on
+	 * tx_buf_empty, set by the serial ISR (lower priority), so a higher
+	 * priority EX trapping mid-byte deadlocks the tick. */
 }
 
 
 /*
  * External IRQ 1 Service Routine, triggered by the NIC recieving a packet
- * Note that all registers are being put on the STACK because of calling
- * a subroutine (write_char), we shold do better...
+ * (RX is polled on this hardware, so this effectively never fires).
  */
 void isr_ext1(void) __interrupt(2)
 {
 	// This flag should only be reset after all packets have been read
 	EX1 = 0;
-	write_char('Y');
 	EX1 = 1;
+	/* write_char() removed (logicog/RTLPlayground #408): spin risk. */
 }
 
 /*
- * External IRQ 2 Service Routine
- * Note that all registers are being put on the STACK because of calling a subroutine
+ * External IRQ 2 Service Routine (write_char() removed: #408 spin risk)
  */
 void isr_ext2(void) __interrupt(8)
 {
 	EXIF &= 0xef;	// Clear IRQ flag (bit 7) in EXIF
-	write_char('Z');
 	PCON |= 1; // Enter Idle mode until interrupt occurs
 }
 
 /*
- * External IRQ 3 Service Routine
- * Note that all registers are being put on the STACK because of calling a subroutine
+ * External IRQ 3 Service Routine (write_char() removed: #408 spin risk)
  */
 void isr_ext3(void) __interrupt(9)
 {
 	EXIF &= 0xdf;	// Clear IRQ flag (bit 6) in EXIF
-	write_char('W');
 }
 
 // Timer2: handles system tick.
