@@ -92,6 +92,11 @@ __xdata struct uip_eth_addr uip_ethaddr;
 volatile __xdata uint32_t ticks;
 volatile __xdata uint8_t sec_counter;
 volatile __xdata uint16_t sleep_ticks;
+/* Software deadman: while dm_enabled, idle() must clear dm_ticks each pass;
+ * the system-tick ISR resets the chip if idle() is starved for DM_MAX_TICKS. */
+#define DM_MAX_TICKS 2000	/* 10 s at SYS_TICK_HZ */
+volatile __xdata uint16_t dm_ticks;
+volatile __xdata uint8_t dm_enabled;
 __xdata uint8_t stp_clock;
 extern __xdata struct dhcp_state dhcp_state;
 
@@ -224,6 +229,19 @@ void isr_timer2(void) __interrupt(5)
 	if (sleep_ticks > 0)
 		sleep_ticks--;
 	sec_counter++;
+
+	if (dm_enabled && ++dm_ticks >= DM_MAX_TICKS) {
+		/* idle() has not run for DM_MAX_TICKS (main loop starved/hung).
+		 * Reset the chip. Inline SFR poke: no function calls in the ISR. */
+		SFR_REG_ADDR_U16 = RTL837X_REG_RESET;
+		SFR_DATA_24 = 0;
+		SFR_DATA_16 = 0;
+		SFR_DATA_8 = 0;
+		SFR_DATA_0 = 1;
+		SFR_EXEC_GO = SFR_EXEC_WRITE_REG;
+		while (1) {
+		}
+	}
 
 	// Clear TF2 & EXF2 by software
 	T2CON &= ~0xC0;
@@ -1539,6 +1557,7 @@ void handle_button(void)
 //
 void idle(void)
 {
+	dm_ticks = 0;	/* watchdog: main loop is alive */
 	PCON |= 1;
 	if (sec_counter >= SYS_TICK_HZ) {
 		sec_counter -= SYS_TICK_HZ;
@@ -2373,6 +2392,8 @@ void main(void)
 	set_hostname_default();
 	print_cmd_prompt();
 	idle_ready = 1;
+	dm_ticks = 0;
+	dm_enabled = 1;
 
 	set_sys_led_state(SYS_LED_ON);
 
