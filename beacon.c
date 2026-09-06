@@ -240,8 +240,13 @@ static void beacon_send_fdb(void)
 		reg_read_m(RTL837x_L2_DATA_OUT_B);
 		b_valid = (sfr_data[0] & 0x20) != 0;
 		if (b_valid) {
-			/* stop well below the buffer end */
-			if (bptr > (__xdata uint8_t *)uip_appdata + 1800)
+			/* Stop well before the end of uip_buf. The UDP payload
+			 * window from uip_appdata is UIP_APPDATA_SIZE (1556 - 26
+			 * LLH - 40 TCPIP = 1490 bytes); the old 1800 guard let the
+			 * walk run ~300 B past the end of uip_buf into adjacent
+			 * memory (logicog/RTLPlayground #404, DrDoof: "cap it well
+			 * under 1500"). Caps ~70 entries; keeps JSON well-formed. */
+			if (bptr >= (__xdata uint8_t *)uip_appdata + 1400)
 				break;
 			if (b_first_flag) {
 				b_first_flag = 0;
