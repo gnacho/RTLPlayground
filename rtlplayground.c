@@ -25,6 +25,7 @@
 #include "machine.h"
 #include "phy.h"
 #include "syslog.h"
+#include "beacon.h"
 #include "httpd/page_impl.h"
 #include "boot.h"
 #include "sfp.h"
@@ -88,6 +89,11 @@ __xdata struct uip_eth_addr uip_ethaddr;
 volatile __xdata uint32_t ticks;
 volatile __xdata uint8_t sec_counter;
 volatile __xdata uint16_t sleep_ticks;
+/* Software deadman: while dm_enabled, idle() must clear dm_ticks each pass;
+ * the system-tick ISR resets the chip if idle() is starved for DM_MAX_TICKS. */
+#define DM_MAX_TICKS 2000	/* 10 s at SYS_TICK_HZ */
+volatile __xdata uint16_t dm_ticks;
+volatile __xdata uint8_t dm_enabled;
 __xdata uint8_t stp_clock;
 __xdata uint8_t arp_age_secs;
 extern __xdata struct dhcp_state dhcp_state;
@@ -198,6 +204,19 @@ void isr_timer2(void) __interrupt(5)
 	if (sleep_ticks > 0)
 		sleep_ticks--;
 	sec_counter++;
+
+	if (dm_enabled && ++dm_ticks >= DM_MAX_TICKS) {
+		/* idle() has not run for DM_MAX_TICKS (main loop starved/hung).
+		 * Reset the chip. Inline SFR poke: no function calls in the ISR. */
+		SFR_REG_ADDR_U16 = RTL837X_REG_RESET;
+		SFR_DATA_24 = 0;
+		SFR_DATA_16 = 0;
+		SFR_DATA_8 = 0;
+		SFR_DATA_0 = 1;
+		SFR_EXEC_GO = SFR_EXEC_WRITE_REG;
+		while (1) {
+		}
+	}
 
 	// Clear TF2 & EXF2 by software
 	T2CON &= ~0xC0;
@@ -486,6 +505,9 @@ void isr_ext0(void) __interrupt(0)
 	EX0 = 0;	// Disable interrupt for the moment
 	IT0 = 1;	// Trigger on falling edge of external interrupt
 	EX0 = 1;	// Re-enable interrupt
+	/* write_char() removed (logicog/RTLPlayground #408): it spins on
+	 * tx_buf_empty, set by the serial ISR (lower priority), so a higher
+	 * priority EX trapping mid-byte deadlocks the tick. */
 }
 
 
@@ -497,11 +519,11 @@ void isr_ext1(void) __interrupt(2)
 	// This flag should only be reset after all packets have been read
 	EX1 = 0;
 	EX1 = 1;
+	/* write_char() removed (logicog/RTLPlayground #408): spin risk. */
 }
 
 /*
- * External IRQ 2 Service Routine
- * Note that all registers are being put on the STACK because of calling a subroutine
+ * External IRQ 2 Service Routine (write_char() removed: #408 spin risk)
  */
 void isr_ext2(void) __interrupt(8)
 {
@@ -509,8 +531,7 @@ void isr_ext2(void) __interrupt(8)
 }
 
 /*
- * External IRQ 3 Service Routine
- * Note that all registers are being put on the STACK because of calling a subroutine
+ * External IRQ 3 Service Routine (write_char() removed: #408 spin risk)
  */
 void isr_ext3(void) __interrupt(9)
 {
@@ -1157,6 +1178,7 @@ void handle_button(void)
 //
 void idle(void)
 {
+	dm_ticks = 0;	/* watchdog: main loop is alive */
 	PCON |= 1;
 	if (sec_counter >= SYS_TICK_HZ) {
 		sec_counter -= SYS_TICK_HZ;
@@ -1192,6 +1214,9 @@ void idle(void)
 			arp_age_secs = 0;
 			uip_arp_timer();
 		}
+
+		// NetPulse beacon countdown, once a second
+		beacon_tick();
 
 #ifdef DEBUG
 		print_sfr_data();
@@ -1693,6 +1718,7 @@ void main(void)
 	check_and_flash_update_image();
 
 	syslog_init();
+	beacon_init();
 
 #ifdef DEBUG
 	// This register seems to work on the RTL8373 only if also the SDS
@@ -1746,6 +1772,8 @@ void main(void)
 	set_hostname_default();
 	print_cmd_prompt();
 	idle_ready = 1;
+	dm_ticks = 0;
+	dm_enabled = 1;
 
 	set_sys_led_state(SYS_LED_ON);
 

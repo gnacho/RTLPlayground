@@ -62,6 +62,7 @@ SRCS = \
 	boot.c \
 	sfp.c \
 	syslog.c \
+	beacon.c \
 	udp_apps.c
 
 # RTL837x
