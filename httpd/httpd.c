@@ -12,7 +12,7 @@
 #include "debug.h"
 
 #define SESSION_ID_LENGTH 12
-#define SESSION_TIMEOUT 200
+#define SESSION_TIMEOUT 1800
 
 #define CMARK_S 6
 
