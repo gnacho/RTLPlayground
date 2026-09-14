@@ -28,6 +28,7 @@
 #include "syslog.h"
 #include "dns.h"
 #include "ntp.h"
+#include "beacon.h"
 #include "httpd/page_impl.h"
 #include "boot.h"
 #include "sfp.h"
@@ -92,6 +93,11 @@ volatile __xdata uint32_t ticks;
 volatile __xdata uint8_t sec_counter;
 volatile __xdata uint16_t sleep_ticks;
 __xdata uint8_t stp_tick_last;
+/* Software deadman: while dm_enabled, idle() must clear dm_ticks each pass;
+ * the system-tick ISR resets the chip if idle() is starved for DM_MAX_TICKS. */
+#define DM_MAX_TICKS 2000	/* 10 s at SYS_TICK_HZ */
+volatile __xdata uint16_t dm_ticks;
+volatile __xdata uint8_t dm_enabled;
 __xdata uint8_t arp_age_secs;
 extern __xdata struct dhcp_state dhcp_state;
 
@@ -211,6 +217,19 @@ void isr_timer2(void) __interrupt(5)
 	if (sleep_ticks > 0)
 		sleep_ticks--;
 	sec_counter++;
+
+	if (dm_enabled && ++dm_ticks >= DM_MAX_TICKS) {
+		/* idle() has not run for DM_MAX_TICKS (main loop starved/hung).
+		 * Reset the chip. Inline SFR poke: no function calls in the ISR. */
+		SFR_REG_ADDR_U16 = RTL837X_REG_RESET;
+		SFR_DATA_24 = 0;
+		SFR_DATA_16 = 0;
+		SFR_DATA_8 = 0;
+		SFR_DATA_0 = 1;
+		SFR_EXEC_GO = SFR_EXEC_WRITE_REG;
+		while (1) {
+		}
+	}
 
 	// Clear TF2 & EXF2 by software
 	T2CON &= ~0xC0;
@@ -533,8 +552,7 @@ void isr_ext1(void) __interrupt(2)
 }
 
 /*
- * External IRQ 2 Service Routine
- * Note that all registers are being put on the STACK because of calling a subroutine
+ * External IRQ 2 Service Routine (write_char() removed: #408 spin risk)
  */
 void isr_ext2(void) __interrupt(8)
 {
@@ -542,8 +560,7 @@ void isr_ext2(void) __interrupt(8)
 }
 
 /*
- * External IRQ 3 Service Routine
- * Note that all registers are being put on the STACK because of calling a subroutine
+ * External IRQ 3 Service Routine (write_char() removed: #408 spin risk)
  */
 void isr_ext3(void) __interrupt(9)
 {
@@ -1262,6 +1279,8 @@ static void handle_tick(void)
 		// Check for button presses once a second
 		handle_button();
 		link_irq = 1;
+		// NetPulse beacon countdown, once a second
+		beacon_tick();
 		// Age the ARP cache: uip_arp_timer() expects a 10 s cadence
 		if (++arp_age_secs >= 10) {
 			arp_age_secs = 0;
@@ -1297,6 +1316,7 @@ static void handle_tick(void)
 
 void idle(void)
 {
+	dm_ticks = 0;	/* deadman: main loop is alive */
 	if (!evflags)
 		PCON |= 1;
 	health_loop_start();
@@ -1771,6 +1791,7 @@ void main(void)
 	syslog_init();
 	dns_init();
 	ntp_init();
+	beacon_init();
 
 #ifdef DEBUG
 	// This register seems to work on the RTL8373 only if also the SDS
@@ -1826,6 +1847,8 @@ void main(void)
 	set_hostname_default();
 	print_cmd_prompt();
 	idle_ready = 1;
+	dm_ticks = 0;
+	dm_enabled = 1;
 
 	set_sys_led_state(SYS_LED_ON);
 
