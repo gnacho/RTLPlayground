@@ -1841,6 +1841,13 @@ void main(void)
 	early_boot_handle_button();
 
 	execute_config();
+	/* No static address after the compiled defaults and the saved config:
+	   bring the interface up via DHCP instead (ownIP 0.0.0.0 build). */
+	if (! ((__xdata uint8_t *)&uip_hostaddr)[0] && ! ((__xdata uint8_t *)&uip_hostaddr)[1] &&
+	    ! ((__xdata uint8_t *)&uip_hostaddr)[2] && ! ((__xdata uint8_t *)&uip_hostaddr)[3]) {
+		print_string("No static IP: starting DHCP\n");
+		dhcp_start();
+	}
 	// After the config so the entry lands in the final management VLAN
 	port_l2_static_mgmt(uip_ethaddr.addr, management_vlan, false);
 	/* After the config: a name from it wins, otherwise derive one. */

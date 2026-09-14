@@ -7,7 +7,7 @@ HTML_LOCATION = 262144
 ifeq ($(origin CC),default)
 CC = sdcc
 endif
-CC_FLAGS = -mmcs51 -I. -Ihttpd -Iuip
+CC_FLAGS = --opt-code-size -mmcs51 -I. -Ihttpd -Iuip --opt-code-size
 ASM ?= sdas8051
 AFLAGS= -plosgff
 
