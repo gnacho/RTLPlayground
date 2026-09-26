@@ -2,10 +2,13 @@
  * beacon.c - NetPulse UDP beacon for RTLPlayground switches
  *
  * Sends one JSON datagram every BEACON_INTERVAL seconds to a NetPulse
- * server (spec v1):
- *   {"v":1,"seq":N,"slug":"switch16","token":"...","ports":[{"n":1,"l":3,"tx":123,"rx":45},...]}
+ * server (spec v1, extended 2026-09 with three optional trailing fields):
+ *   {"v":1,"seq":N,"slug":"switch16","token":"...","ports":[{"n":1,"l":3,"tx":123,"rx":45},...]
+ *    ,"up":<seconds since boot>,"mac":"<mgmt MAC, 12 hex>","fw":"<VERSION_SW>"}
  * Link codes l match status.json (0=down, else speed code + 1).
  * tx/rx are the accumulated good packet counters per port (decimal).
+ * up/mac/fw let the server show firmware/uptime/MAC without polling the
+ * web console (which would steal the single global login session).
  *
  * Configured via CLI/config/web command:
  *   beacon                 - status
@@ -21,6 +24,7 @@
 
 #include "machine.h"
 #include "beacon.h"
+#include "version.h"
 #include "uip/uip.h"
 #include "rtl837x_sfr.h"
 #include "rtl837x_common.h"
@@ -147,6 +151,7 @@ void beacon_stop(void) __banked
 /* Called once per second from the main loop */
 void beacon_tick(void) __banked
 {
+	beacon_state.uptime++;
 	if (!beacon_state.enabled)
 		return;
 	if (!beacon_state.fdb_enabled) {
@@ -341,7 +346,19 @@ void beacon_callback(void) __banked
 		*bptr++ = '}';
 	}
 
-	B_STR("]}");
+	B_STR("],\"up\":");
+	bval = beacon_state.uptime;
+	b_u32();
+	B_STR(",\"mac\":\"");
+	b_b = uip_ethaddr.addr[0]; b_hex2();
+	b_b = uip_ethaddr.addr[1]; b_hex2();
+	b_b = uip_ethaddr.addr[2]; b_hex2();
+	b_b = uip_ethaddr.addr[3]; b_hex2();
+	b_b = uip_ethaddr.addr[4]; b_hex2();
+	b_b = uip_ethaddr.addr[5]; b_hex2();
+	B_STR("\",\"fw\":\"");
+	B_STR(VERSION_SW);
+	B_STR("\"}");
 
 	uip_udp_send(bptr - BEACON_P);
 }

@@ -20,6 +20,7 @@ struct beacon_state {
 	uint16_t fdb_seconds;	/* countdown to next FDB send */
 	uint8_t fdb_pending;	/* 1 = FDB datagram queued */
 	uint16_t seq;
+	uint32_t uptime;	/* seconds since boot, +1 per beacon_tick() */
 	char token[BEACON_TOKEN_MAX];
 	struct uip_udp_conn *conn;
 };
