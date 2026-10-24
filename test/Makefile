@@ -121,7 +121,7 @@ snmp-unit: $(BUILDDIR)/test_snmp $(BUILDDIR)/test_snmp_nine $(BUILDDIR)/test_snm
 
 # Exercise the actual dispatcher, ARP module and UDP service implementations.
 TRANSPORTDEPS = $(SRCROOT)/syslog.c $(SRCROOT)/dhcp.c $(SRCROOT)/uip/uip_arp.c $(SRCROOT)/snmp.h
-TRANSPORTENV = $(SNMPENV) $(SRCROOT)/udp_apps.c transport_arp.c \
+TRANSPORTENV = $(SNMPENV) $(SRCROOT)/udp_apps.c beacon_stub.c transport_arp.c \
                transport_dhcp.c $(SRCROOT)/dns.c $(SRCROOT)/ntp.c transport_syslog.c
 $(BUILDDIR)/test_snmp_transport: test_snmp_transport.c test_snmp.c test_httpd_tx.c snmp_wire_fixtures.h $(TRANSPORTENV) $(TRANSPORTDEPS) | $(BUILDDIR)
 	$(CC) $(SNMPFLAGS) $(GC_CFLAGS) test_snmp_transport.c $(TRANSPORTENV) -o $@ $(LDFLAGS) $(GC_LDFLAGS)
@@ -132,8 +132,8 @@ snmp: snmp-unit $(BUILDDIR)/test_snmp_transport $(BUILDDIR)/test_snmp_transport_
 	$(BUILDDIR)/test_snmp_transport_nine
 
 # Real HORACO profile compatibility; all hardware access is mocked.
-$(BUILDDIR)/test_snmp_horaco_profile: test_snmp_horaco_profile.c test_snmp.c test_httpd_tx.c $(SNMPENV) $(SRCROOT)/machine/SWTGW218AS.c | $(BUILDDIR)
-	$(CC) $(SNMPFLAGS) -DMACHINE_SWTGW218AS -DMACHINE_NAME=SWTGW218AS test_snmp_horaco_profile.c $(SNMPENV) $(SRCROOT)/machine/SWTGW218AS.c -o $@ $(LDFLAGS)
+$(BUILDDIR)/test_snmp_horaco_profile: test_snmp_horaco_profile.c test_snmp.c test_httpd_tx.c $(SNMPENV) $(SRCROOT)/machine.c | $(BUILDDIR)
+	$(CC) $(SNMPFLAGS) -DMACHINE_SWTGW218AS -DMACHINE_NAME=SWTGW218AS test_snmp_horaco_profile.c $(SNMPENV) $(SRCROOT)/machine.c -o $@ $(LDFLAGS)
 .PHONY: snmp-horaco-profile
 snmp-horaco-profile: $(BUILDDIR)/test_snmp_horaco_profile
 	$(BUILDDIR)/test_snmp_horaco_profile
