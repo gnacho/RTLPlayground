@@ -2,11 +2,17 @@
  * beacon.c - NetPulse UDP beacon for RTLPlayground switches
  *
  * Sends one JSON datagram every BEACON_INTERVAL seconds to a NetPulse
- * server (spec v1, extended 2026-09 with three optional trailing fields):
- *   {"v":1,"seq":N,"slug":"switch16","token":"...","ports":[{"n":1,"l":3,"tx":123,"rx":45},...]
+ * server (spec v1, extended 2026-09 with three optional trailing fields,
+ * extended 2026-10 with per-port byte counters):
+ *   {"v":1,"seq":N,"slug":"switch16","token":"...","ports":[{"n":1,"l":3,"tx":123,"rx":45,
+ *    "ih":0,"il":987654,"oh":0,"ol":123456},...]
  *    ,"up":<seconds since boot>,"mac":"<mgmt MAC, 12 hex>","fw":"<VERSION_SW>"}
  * Link codes l match status.json (0=down, else speed code + 1).
  * tx/rx are the accumulated good packet counters per port (decimal).
+ * ih/il are the high/low 32-bit halves of the accumulated ifInOctets and
+ * oh/ol of ifOutOctets (native 64-bit MIB counters). Servers older than
+ * the octet support ignore the extra fields; servers without them fall
+ * back to frames/s from tx/rx.
  * up/mac/fw let the server show firmware/uptime/MAC without polling the
  * web console (which would steal the single global login session).
  *
@@ -31,11 +37,17 @@
 #include "rtl837x_regs.h"
 #include "rtl837x_port.h"
 
-#pragma codeseg BANK2
-#pragma constseg BANK2
+#pragma codeseg BANK3
+#pragma constseg BANK3
 
 extern __code struct machine machine;
 extern __xdata uint8_t sfr_data[4];
+
+/* Native 64-bit MIB counter numbers for ifInOctets/ifOutOctets, verified
+ * against the selector mapping the SNMP agent uses in snmp.c (ifXTable
+ * col 6 -> 0, col 10 -> 1). */
+#define BEACON_CNT_IN_OCTETS  0
+#define BEACON_CNT_OUT_OCTETS 1
 
 __xdata struct beacon_state beacon_state;
 static uip_ipaddr_t __xdata beacon_ip;
@@ -45,6 +57,8 @@ static uip_ipaddr_t __xdata beacon_ip;
 /* Working state, kept out of internal RAM */
 static __xdata uint8_t * __xdata bptr;
 static __xdata uint32_t bval;
+static __xdata uint32_t bval_hi;
+static __xdata uint32_t bval2;
 static __xdata uint8_t b_n;
 static __xdata uint8_t b_i;
 static __xdata uint8_t b_counter;
@@ -189,14 +203,24 @@ static void beacon_link_code(void)
 	bval = b_b;
 }
 
-/* 32 bit MIB counter for port b_i / counter b_counter into bval,
- * assembled byte by byte with compound operations to avoid 32 bit
- * temporaries in internal RAM. The counter lives in STAT_V_LOW (the
- * console/web read it the same way); STAT_V_HIGH only holds the upper
- * 32 bits of the 64-bit MIB value, which we do not need. */
+/* MIB counter for port b_i into bval (low 32 bits) and bval_hi (high 32
+ * bits), assembled byte by byte with compound operations to avoid 32 bit
+ * temporaries in internal RAM. The counter lives across STAT_V_HIGH (upper
+ * 32 bits of the 64-bit MIB value) and STAT_V_LOW (lower half); the
+ * console/web read only STAT_V_LOW. Native counter numbers 0/1 are
+ * ifInOctets/ifOutOctets, verified against the selector mapping the SNMP
+ * agent uses in snmp.c. */
 static void beacon_stat(void)
 {
 	STAT_GET(b_counter, b_i);
+	reg_read_m(RTL837X_STAT_V_HIGH);
+	bval_hi = sfr_data[0];
+	bval_hi <<= 8;
+	bval_hi |= sfr_data[1];
+	bval_hi <<= 8;
+	bval_hi |= sfr_data[2];
+	bval_hi <<= 8;
+	bval_hi |= sfr_data[3];
 	reg_read_m(RTL837X_STAT_V_LOW);
 	bval = sfr_data[0];
 	bval <<= 8;
@@ -342,6 +366,24 @@ void beacon_callback(void) __banked
 		B_STR(",\"rx\":");
 		b_counter = STAT_COUNTER_RX_PKTS;
 		beacon_stat();
+		b_u32();
+		B_STR(",\"ih\":");
+		b_counter = BEACON_CNT_IN_OCTETS;
+		beacon_stat();
+		bval2 = bval;
+		bval = bval_hi;
+		b_u32();
+		bval = bval2;
+		B_STR(",\"il\":");
+		b_u32();
+		B_STR(",\"oh\":");
+		b_counter = BEACON_CNT_OUT_OCTETS;
+		beacon_stat();
+		bval2 = bval;
+		bval = bval_hi;
+		b_u32();
+		bval = bval2;
+		B_STR(",\"ol\":");
 		b_u32();
 		*bptr++ = '}';
 	}
