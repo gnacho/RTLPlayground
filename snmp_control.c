@@ -4,8 +4,8 @@
 #include "uip/uip.h"
 #include "snmp.h"
 #include "snmp_internal.h"
-#pragma codeseg BANK2
-#pragma constseg BANK2
+#pragma codeseg BANK3
+#pragma constseg BANK3
 extern __xdata uint8_t cmd_words_len, cmd_words_b[], save_cmd;
 extern uint8_t cmd_compare(uint8_t start, __code const uint8_t *cmd);
 extern __xdata uint8_t outbuf[];
