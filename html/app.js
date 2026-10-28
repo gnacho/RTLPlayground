@@ -120,13 +120,15 @@ fw_other:"This image was not built for this switch ({m}): its SFP, LED and butto
 fw_d:"On a good checksum the switch resets itself and applies the image during boot (the startup config is preserved). Do not power it off until it comes back.",
 fw_finishing:"finishing flash write... {s} s",fw_uploading:"uploading... {p}% / {s} s",
 fw_verified:"checksum verified, the switch is rebooting...",
-fw_rejected:"the switch rejected the image (bad checksum), nothing was applied",
+fw_rejected:"the switch rejected the image, nothing was applied",
 fw_lost:"upload failed: connection lost mid-transfer",
 fw_noreboot:"no reboot detected: the image was most likely rejected. If updating from old firmware, verify the version in the sidebar after logging in again.",
 fw_applied:"update applied",fw_done_t:"Firmware updated",
 fw_done:"The switch verified the image and rebooted into it. The session was reset, so you will be asked to log in again.",
 fw_login:"Go to login",fw_rebooting:"switch is rebooting...",
 fw_timeout:"switch has not come back after 150 s: check power / serial console"
+,
+  fw_unauth:"session expired: log in again and upload the image once more",snmp_agent:"SNMP agent",snmp_agent_on:"On",snmp_agent_off:"Off",snmp_hint:"The agent answers only while it is on and both a community and an allowed manager are set.",snmp_enable_aria:"Enable SNMP agent",snmp_manager:"Allowed manager",snmp_manager_note:"Manager IP or network in CIDR notation. Use /32 for one host.",snmp_community:"Community",snmp_comm_ok:"Community configured. Blank keeps the current value.",snmp_comm_none:"No community configured. Enter one to set up SNMP.",snmp_protocol:"Protocol",snmp_access:"Access",snmp_readonly:"Read-only",snmp_udp_port:"UDP port",snmp_save_note:"Apply updates the running settings. Use Save to flash to keep them after reboot."
 },
 ja:{
 nav_dash:"ダッシュボード",nav_ports:"ポート",nav_stp:"スパニングツリー",nav_stats:"統計",
@@ -458,13 +460,17 @@ fw_valid:"imagen de RTLPlayground válida (tamaño, magia y CRC16 correctos)",fw
 fw_d:"Si la suma de comprobación es correcta, el switch se reinicia y aplica la imagen durante el arranque (la configuración de inicio se conserva). No lo apagues hasta que vuelva.",
 fw_finishing:"terminando escritura en flash... {s} s",fw_uploading:"subiendo... {p}% / {s} s",
 fw_verified:"suma de comprobación verificada, el switch se está reiniciando...",
-fw_rejected:"el switch rechazó la imagen (suma de comprobación incorrecta), no se aplicó nada",
+fw_rejected:"el switch rechazó la imagen, no se aplicó nada",
 fw_lost:"error de subida: conexión perdida durante la transferencia",
 fw_noreboot:"no se detectó reinicio: lo más probable es que la imagen fuera rechazada. Si actualizas desde un firmware antiguo, verifica la versión en la barra lateral tras volver a iniciar sesión.",
 fw_applied:"actualización aplicada",fw_done_t:"Firmware actualizado",
 fw_done:"El switch verificó la imagen y se reinició con ella. La sesión se restableció, así que se te pedirá que vuelvas a iniciar sesión.",
 fw_login:"Ir al inicio de sesión",fw_rebooting:"el switch se está reiniciando...",
 fw_timeout:"el switch no ha vuelto tras 150 s: comprueba la alimentación / consola serie"
+,
+  nav_isolate:"Aislamiento",nav_lldp:"LLDP",i_temp:"Temperatura",lldp_enabled:"LLDP activado",lldp_title:"Estado del servicio",lldp_portname:"Nombre",lldp_enable:"Enviar tramas",stp_pcs:"Coste de ruta",stp_pcs_long:"Largo (32 bits)",stp_pcs_short:"Corto (16 bits)",stp_bh:"BPDU con STP desactivado",stp_bh_flood:"Inundar",stp_bh_filter:"Filtrar",stp_r4:"Respaldo",stp_times:"edad máxima / retardo de reenvío",stp_proto:"Protocolo",stp_nolink:"sin enlace",stp_lasttc:"último",stp_mcheck:"Comprobar",stp_mcheck_t:"Reenviar BPDUs RST para saber si el vecino sigue necesitando 802.1D",stp_cnt:"Contadores",stp_crx:"BPDUs recibidas",stp_ctx:"BPDUs enviadas",stp_ctrx:"TC recibidas",stp_cttx:"TC enviadas",stp_cage:"Última BPDU [s]",v_setmgmt_q:"¿Fijar {n} como ID de gestión?",v_add:"Añadir una VLAN",v_mgmt_c:"AVISO: debes poder acceder a esta VLAN para seguir gestionando el switch.",v_rename:"Renombrar",v_rename_t:"Renombrar VLAN",v_mgmt_tt:"La VLAN de gestión no se puede borrar, primero hay que asignar la gestión a otra VLAN.",iso_title:"Aislamiento de puertos",iso_from:"Desde el puerto",iso_to:"Hacia el puerto",iso_all:"Permitir todo",iso_intro:"Una trama que entra por un puerto solo puede salir por los puertos marcados en su fila. El aislamiento se decide antes del reenvío, así que un puerto sin marcar es inalcanzable de forma directa, diga lo que diga la tabla de direcciones.",iso_legend:"La celda del propio puerto siempre está permitida. Un número de puerto en rojo indica un puerto que no está del todo abierto.",lacp_heading:"LACP (802.3ad)",lag_mode:"Modo",lag_static:"Estático",lacp_neg:"negociando",lacp_agg:"agregador",lacp_members:"miembros activos",lacp_hint:"LACP: elige los puertos candidatos y pulsa Aplicar para iniciar la negociación",lacp_actor:"Local",lacp_partner:"Remoto",lacp_rxstate:"Estado RX",lacp_rx:"LACPDUs recibidas",lacp_psys:"Sistema remoto",sc_title:"Control de tormentas",sc_h:"por puerto y tipo de tráfico, vacío = desactivado",sc_bcast:"Difusión",sc_mcast:"Multidifusión",sc_ucast:"Unidifusión desconocida",sc_umcast:"Multidifusión desconocida",sc_err:"El límite de tormenta debe ser 1-1048575 pps o 1-10000000 kbit/s",sc_note:"Las tramas de un tipo por encima de su límite se descartan a la entrada del switch.",sy_dns1:"Servidor DNS",sy_dns2:"DNS secundario",sy_dns_err:"IP del servidor DNS no válida",sy_dns_dhcp:"desde DHCP: {ip}",sy_time:"Hora",sy_ntp:"NTP",sy_ntpsrv:"Servidor NTP",sy_ntpsrv_p:"nombre de host o dirección IPv4",sy_ntpint:"Intervalo de consulta [min]",sy_tz:"Zona horaria",sy_dst:"Horario de verano",sy_dst_eu:"Europa",sy_dst_us:"Estados Unidos",sy_now:"Hora local",sy_sync:"Última sincronización",sy_ntpaddr:"Dirección del servidor",sy_nosync:"sin sincronizar",sy_waiting:"esperando al servidor",sy_ago:"hace {n} min",sy_ntp_err:"Introduce el nombre de host o la dirección IPv4 del servidor NTP",sy_ntpint_err:"El intervalo de consulta debe ser 1-1440",sy_time_note:"El switch no tiene reloj con batería: la hora se pierde en cada arranque y se vuelve a fijar desde el servidor NTP cuando la red está lista. Guarda en flash para conservar los ajustes.",cw_longline:"La línea {n} mide {m} bytes: el switch solo puede ejecutar líneas de hasta 126 bytes y la saltaría al arrancar, así que se rechaza la escritura. Acórtala primero.",fw_other:"Esta imagen no se compiló para este switch ({m}): los pines de SFP, LEDs y botones pueden no coincidir. Súbela solo si estás seguro."
+,
+  fw_unauth:"la sesión ha caducado: vuelve a entrar y sube la imagen otra vez",snmp_agent:"Agente SNMP",snmp_agent_on:"Activado",snmp_agent_off:"Desactivado",snmp_hint:"El agente solo responde mientras está activado y hay una community y un gestor permitido.",snmp_enable_aria:"Activar el agente SNMP",snmp_manager:"Gestor permitido",snmp_manager_note:"IP o red del gestor en notación CIDR. Usa /32 para un solo equipo.",snmp_community:"Community",snmp_comm_ok:"Community configurada. Si lo dejas en blanco se mantiene la actual.",snmp_comm_none:"No hay community configurada. Escribe una para configurar SNMP.",snmp_protocol:"Protocolo",snmp_access:"Acceso",snmp_readonly:"Solo lectura",snmp_udp_port:"Puerto UDP",snmp_save_note:"Aplicar cambia los ajustes en marcha. Usa Guardar en flash para conservarlos tras reiniciar."
 },
 fr:{
 nav_dash:"Tableau de bord",nav_ports:"Ports",nav_stp:"Arborescence",nav_stats:"Statistiques",
@@ -717,6 +723,7 @@ function i18nApply(){
   document.querySelectorAll("[data-i18n]").forEach(function(el){el.textContent=t(el.getAttribute("data-i18n"))});
   document.querySelectorAll("[data-i18n-t]").forEach(function(el){el.title=t(el.getAttribute("data-i18n-t"))});
   document.querySelectorAll("[data-i18n-p]").forEach(function(el){el.placeholder=t(el.getAttribute("data-i18n-p"))});
+  document.querySelectorAll("[data-i18n-a]").forEach(function(el){el.setAttribute("aria-label",t(el.getAttribute("data-i18n-a")))});
 }
 
 var S={
@@ -2043,8 +2050,8 @@ function renderSnmp(s){
   var supported=Array.isArray(s)&&s.length===10;
   $("sy-snmp").style.display=supported?"":"none";
   if(!supported)return;
-  $("sy-snmp-enabled").textContent=s[0]?"Enabled":"Disabled";
-  $("sy-snmp-community").textContent=s[1]?"Community configured. Blank keeps the current value.":"No community configured. Enter one to set up SNMP.";
+  $("sy-snmp-enabled").textContent=t(s[0]?"snmp_agent_on":"snmp_agent_off");
+  $("sy-snmp-community").textContent=t(s[1]?"snmp_comm_ok":"snmp_comm_none");
   if(!snmpEdited&&!snmpPending){
     $("sy-snmp-toggle").checked=!!s[0];
     $("sy-snmp-manager").value=snmpManagerCIDR(s);
@@ -2527,6 +2534,9 @@ $("fwup").addEventListener("click",function(){
       if(xhr.status===200){
         st.textContent=t("fw_verified");
         fwSettle(st,true);
+      }else if(xhr.status===401){
+        st.textContent="\u2715 "+t("fw_unauth");
+        $("fwup").disabled=false;
       }else{
         var why=(xhr.responseText||"").trim().split("\n")[0];
         st.textContent="\u2715 "+t("fw_rejected")+" (HTTP "+xhr.status+(why?": "+why:"")+")";
