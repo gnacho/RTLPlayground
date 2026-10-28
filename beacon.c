@@ -13,6 +13,8 @@
  * oh/ol of ifOutOctets (native 64-bit MIB counters). Servers older than
  * the octet support ignore the extra fields; servers without them fall
  * back to frames/s from tx/rx.
+ * ie/oe are the accumulated receive and transmit error counters of the
+ * port (the same values the SNMP agent reports as ifInErrors/ifOutErrors).
  * up/mac/fw let the server show firmware/uptime/MAC without polling the
  * web console (which would steal the single global login session).
  *
@@ -384,6 +386,17 @@ void beacon_callback(void) __banked
 		b_u32();
 		bval = bval2;
 		B_STR(",\"ol\":");
+		b_u32();
+		/* Selector 48 holds the RX/TX error pair: the high word counts
+		 * receive errors and the low word transmit errors. */
+		b_counter = STAT_COUNTER_ERR_PKTS;
+		beacon_stat();
+		B_STR(",\"ie\":");
+		bval2 = bval;
+		bval = bval_hi;
+		b_u32();
+		B_STR(",\"oe\":");
+		bval = bval2;
 		b_u32();
 		*bptr++ = '}';
 	}
