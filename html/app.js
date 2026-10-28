@@ -2274,7 +2274,7 @@ var CONF_OVERWRITE=[
   /^ntp\s+server\b/,/^ntp\s+interval\b/,/^ntp\s+timezone\b/,/^ntp\s+dst\b/,/^beacon\b/,
   /^vlan\s+\d{1,4}\s+mgmt$/,/^vlan\s+\d{1,4}(?!\s+mgmt\b)/,
   /^pvid\s+\d{1,2}\b/,
-  /^port\s+\d{1,2}(?!\s+name\b)/,/^port\s+\d{1,2}\s+name\b/,
+  /^port\s+\d{1,2}(?!\s+(name|lldp)\b)/,/^port\s+\d{1,2}\s+name\b/,
   /^mirror\b/,
   /^lag\s+\d\b/,/^laghash\s+\d\b/,/^isolate\s+\d{1,2}\b/,
   /^stp\s+(prio|hello|maxage|fwd|txhold|version)\b/,
@@ -2282,7 +2282,7 @@ var CONF_OVERWRITE=[
   /^igmp\b/,/^mtu\s+\d{1,2}\b/,/^storm\s+\d{1,2}\s+(bcast|mcast|ucast|umcast)\b/,
   /^rma\s+(0[0-4]|08|0d|0e|1[0-3]|18|1a|2[0-2]|cdp|csstp|lldp)\b/,/^rma\s+(priority|lldpmatch)\b/,/^rma\s+ptp\s+(priority|cpu|\d)\b/,
 ];
-var CONF_TOGGLE=[/^(snmp)\s+(on|off)$/,/^(syslog)\s+(on|off)$/,/^(ntp)\s+(on|off)$/,/^(stp)\s+(on|off)$/,/^(stp\s+(port\s+\d{1,2}|lag\s+[1-4]))\s+(on|off)$/];
+var CONF_TOGGLE=[/^(snmp)\s+(on|off)$/,/^(syslog)\s+(on|off)$/,/^(ntp)\s+(on|off)$/,/^(lldp)\s+(on|off)$/,/^(stp)\s+(on|off)$/,/^(stp\s+(port\s+\d{1,2}|lag\s+[1-4]))\s+(on|off)$/];
 function mergeConf(base,texts){
   var conf=base.slice();
   function drop(rx){conf=conf.filter(function(c){return!rx.test(c)})}
@@ -2299,6 +2299,7 @@ function mergeConf(base,texts){
         conf.push(line);return;
       }
       if(line==="mirror off"){drop(/^mirror /);return;}
+      if((m=line.match(/^(port \d{1,2} lldp) (permit|block)$/))){drop(new RegExp("^"+m[1]+" (permit|block)$"));conf.push(line);return;}
       if(!isConfCmd(line))return;
       if((m=line.match(/^ingress (.+)$/))){
         if(/^[tua]$/.test(m[1])){drop(/^ingress /);conf.push(line);return;}
@@ -2331,7 +2332,7 @@ function mergeConf(base,texts){
           var key=line.match(rx)[0];
           conf=conf.filter(function(item){
             return!(item===key||(item.indexOf(key+" ")===0
-              &&!/\smgmt$/.test(item)&&item.indexOf(key+" name ")!==0));
+              &&!/\smgmt$/.test(item)&&item.indexOf(key+" name ")!==0&&item.indexOf(key+" lldp ")!==0));
           });
           break;
         }
