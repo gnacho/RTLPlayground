@@ -78,7 +78,7 @@ $(BUILDDIR)/test_page_json: test_page_json.c $(TABLE_ENV) hw_mock.h | $(BUILDDIR
 $(BUILDDIR)/test_httpd_tx: test_httpd_tx.c $(SRCROOT)/httpd/httpd.c $(SRCROOT)/uip/uip.c | $(BUILDDIR)
 	$(CC) $(CFLAGS) $(filter %.c,$^) -o $@ $(LDFLAGS)
 
-run: $(TESTS) snmp snmp-horaco-profile snmp-status snmp-cli snmp-replay config-replay
+run: bank-audit-unit $(TESTS) snmp snmp-horaco-profile snmp-status snmp-cli snmp-replay config-replay
 	@fail=0; for t in $(TESTS); do \
 		echo "=== $$t ==="; \
 		$$t || fail=1; \
@@ -174,3 +174,7 @@ $(addprefix $(BUILDDIR)/,test_snmp test_snmp_nine test_snmp_horaco_profile test_
 .PHONY: config-replay
 config-replay:
 	cd $(SRCROOT) && CC="$(CC)" python3 test/test_config_replay.py
+
+.PHONY: bank-audit-unit
+bank-audit-unit:
+	python3 test_banked_calls.py
