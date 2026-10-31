@@ -24,6 +24,7 @@ only the following features are provided:
 - Configuration saved to flash via the web-interface
 - Firmware updates via the web
 - Installation as a firmware upgrade from the original web-interface
+- Optional NetPulse UDP beacon for port state, counters, FDB and device metadata, see [the beacon guide](doc/beacon.md)
 
 <img width="1673" height="977" alt="GUI" src="doc/images/gui.png" />
 
